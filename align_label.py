@@ -1,5 +1,7 @@
 from os import path, listdir
 import os
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 class rigid_body:
     rigid_ID = 0
@@ -13,15 +15,21 @@ class rigid_body:
     qw = 0
 
 def compute_coord(obj_list):
-    r1 = obj_list[0]
-    r2 = obj_list[1]
-    print("r1.X: "+str(r1.x))
-    print("r1.Y: "+str(r1.y))
-    print("r1.z: "+str(r1.z))
-    print("r2.X: "+str(r2.x))
-    print("r2.Y: "+str(r2.y))
-    print("r2.z: "+str(r2.z))
-    print("next")
+    r1 = obj_list[0]   # lu frame corner
+    r2 = obj_list[1]   # lu door corner
+    r3 = obj_list[2]   #camera
+    
+    r1_array = np.array([[r1.x], [r1.y], [r1.z], [1]])
+    r3_array = np.array([[r3.x], [r3.y], [r3.z]])
+    K = np.array([[602.25927734375, 0.0, 321.3750915527344], [0.0, 603.0400390625, 240.51527404785156], [0.0, 0.0, 1.0]])  #intrinsic
+    T = R.from_quat([r3.qx, r3.qy, r3.qz, r3.qw]).as_matrix() #extrinsic rotation
+    T = np.hstack((T,r3_array)) #extrinsic translation
+    T = np.append(T, [[0,0,0,1]], axis=0)
+    P = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
+    
+    r1_transform = np.matmul(np.matmul(np.matmul(K, P), T), r1_array)
+
+    print("r1_transform:"+str(r1_transform))
 
 
 def compute_once(align_path, exp_time):
@@ -35,7 +43,7 @@ def compute_once(align_path, exp_time):
         lines = infile.readlines()
         for line in lines:
             if (line.split(" Time: ")[0] == ">> System"):
-                time = long(line.split(" Time: ")[1].split("\n")[0])
+                time = int(line.split(" Time: ")[1].split("\n")[0])
                 time_duration = round(float(time - init_time)/1e9,2)
                 #print("time_duration:"+str(time_duration))
                 if not ((time_duration >= exp_time) and (pre_time < exp_time)):
