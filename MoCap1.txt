@@ -1,0 +1,11 @@
+start: 
+174755266054028
+
+end:
+175635266054028
+
+Duration:
+4.20 start
+19.00
+
+rosbag play -s 4.2 -u 14.8 MoCapL515Door_1.bag
