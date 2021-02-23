@@ -3,6 +3,7 @@ import os
 import numpy as np
 import cv2
 from scipy.spatial.transform import Rotation as R
+from numpy.linalg import inv
 
 class rigid_body:
     rigid_ID = 0
@@ -25,28 +26,61 @@ def compute_coord(obj_list,align_path,f):
     r2_array = np.array([[r2.x], [r2.y], [r2.z], [1]])
     #print("r1_array:::"+str(r1_array))
     r3_array = np.array([[r3.x], [r3.y], [r3.z]])
-    K = np.array([[602.25927734375, 0.0, 321.3750915527344], [0.0, 603.0400390625, 240.51527404785156], [0.0, 0.0, 1.0]])  #intrinsic
+#####
+    lfd_array = np.array([[-0.54067284], [-0.0111583145], [-0.59584385], [1]])
+    rfu_array = np.array([[-0.47726107], [-2.0054173], [-1.5429099], [1]])
+    rfd_array = np.array([[-0.52493185], [-0.0029689868], [-1.4633833], [1]])
+#####
+    K = np.array([[602.25927734375, 0.0, 321.3750915527344], [0.0, 480.0400390625, 240.51527404785156], [0.0, 0.0, 1.0]])  #intrinsic
+    P = [[1,0,0,0],[0,1,0,0],[0,0,1,0]]
+
     T = R.from_quat([r3.qx, r3.qy, r3.qz, r3.qw]).as_matrix() #extrinsic rotation
     T = np.hstack((T,r3_array)) #extrinsic translation
     T = np.append(T, [[0,0,0,1]], axis=0)
-    #print("T:::"+str(T))
-    #print("Transformed:::"+str(T @ r1_array))
-    P = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
+    T = inv(T)
+    T_compensate = R.from_quat([0.7071, 0 ,0.7071 ,0]).as_matrix() #extrinsic rotation
+    #T_compensate = R.from_quat([ 0.2027, 0 ,0.7863 ,-0.5836]).as_matrix() #extrinsic rotation
 
-    r1_transform = K @ P @ T @ r1_array
+    compensate_array = np.array([[0.2], [-0.4], [-0.8]])
+    #print(compensate_array)
+
+    T_compensate = np.hstack((T_compensate, compensate_array)) #extrinsic translation
+    T_compensate = np.append(T_compensate, [[0,0,0,1]], axis=0)
+    print("T_compensate_r1:::"+str(P @ T_compensate @ T @ r1_array))
+    print("T_compensate_r2:::"+str(P @ T_compensate @ T @ r2_array))
+
+    r1_transform = K @ P @ T_compensate @ T @ r1_array
+    print("r1_transform_before:::"+str(r1_transform))
     #r1_transform = np.matmul(np.matmul(np.matmul(K, P), T), r1_array)
     r1_transform = r1_transform/r1_transform[2]
+    print("r1_transform:::"+str(r1_transform))
 
-    r2_transform = K @ P @ T @ r2_array
+    r2_transform = K @ P @ T_compensate @ T @ r2_array
+    print("r2_transform_before:::"+str(r2_transform))
     r2_transform = r2_transform/r2_transform[2]
+    print("r2_transform:::"+str(r2_transform))
+
+    lfd_transform = K @ P @ T_compensate @ T @ lfd_array
+    lfd_transform = lfd_transform/lfd_transform[2]
+
+    rfu_transform = K @ P @ T_compensate @ T @ rfu_array
+    rfu_transform = rfu_transform/rfu_transform[2]
+
+    rfd_transform = K @ P @ T_compensate @ T @ rfd_array
+    rfd_transform = rfd_transform/rfd_transform[2]
+
    # print("x in camera:"+str(r1_transform))
     #print("image"+str(f))
     image = cv2.imread(path.join(image_path,f))
-    cv2.rectangle(image, (int(r1_transform[0]/10),int(r1_transform[1]/10), 20, 20), (255,0,0), -1)
-    cv2.rectangle(image, (int(r2_transform[0]/10),int(r2_transform[1]/10), 20, 20), (0,255,0), -1)
+    cv2.rectangle(image, (640- int(r2_transform[0])-10, 480- int(r2_transform[1])-10, 20, 20), (0,255,0), -1)
+    cv2.rectangle(image, (640- int(r1_transform[0])-10, 480- int(r1_transform[1])-10, 20, 20), (255,0,0), -1)
+    cv2.rectangle(image, (640- int(lfd_transform[0])-10, 480- int(lfd_transform[1])-10, 20, 20), (0,255,0), -1)
+    cv2.rectangle(image, (640- int(rfu_transform[0])-10, 480- int(rfu_transform[1])-10, 20, 20), (0,255,0), -1)
+    cv2.rectangle(image, (640- int(rfd_transform[0])-10, 480- int(rfd_transform[1])-10, 20, 20), (0,255,0), -1)
+
 
     cv2.imshow("image", image)
-    cv2.waitKey(30000) & 0xFF
+    cv2.waitKey(3000) & 0xFF
 
     #print("r1_transform:"+str(r1_transform))
 
@@ -130,7 +164,7 @@ if __name__ == '__main__':
     pre_count = 0
     count = 0
     pre_time = 0
-    init_time = 174755266054028
+    init_time = 174755184484862
     time = None
     num_rigid = 0
     obj_list = []
